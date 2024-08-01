@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract DeBank is Ownable, ReentrancyGuard {
+    
     struct Account {
         string name;
         string pan;
@@ -45,12 +46,14 @@ contract DeBank is Ownable, ReentrancyGuard {
         string memory _name,
         string memory _pan
     ) public payable {
-        if (msg.value < MINIMUM_DEPOSIT) {
-            revert MinimumDepositNotMet(msg.value, MINIMUM_DEPOSIT);
-        }
-        if (accounts[msg.sender].exists) {
-            revert AccountAlreadyExists(msg.sender);
-        }
+        require(msg.value >= MINIMUM_DEPOSIT, "Minimum deposite not met.");
+        // if (msg.value < MINIMUM_DEPOSIT) {
+        //     revert MinimumDepositNotMet(msg.value, MINIMUM_DEPOSIT);
+        // }
+        require(!accounts[msg.sender].exists, "Account already exists.");
+        // if (accounts[msg.sender].exists) {
+        //     revert AccountAlreadyExists(msg.sender);
+        // }
         Account memory newAccount = Account({
             name: _name,
             pan: _pan,
