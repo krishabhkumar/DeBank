@@ -26,32 +26,56 @@ contract TestDeBank is Test {
     }
 
     function testMinimumDeposite() public view {
-        assertEq(minimumDeposit, 0.01 ether);
+        assertEq(minimumDeposit, 2 ether);
     }
 
     function testAccountCreationFailsWithInsufficientAmount() public {
         vm.startPrank(user1);
-        uint insufficientAmount = minimumDeposit - 1;
-        //vm.expectRevert(MinimumDepositNotMet(insufficientAmount, minimumDeposit));
-        vm.expectRevert("Minimum deposite not met.");
+        uint insufficientAmount = minimumDeposit - 1 ether;
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                bytes4(keccak256("MinimumDepositNotMet(uint256,uint256)")),
+                insufficientAmount,
+                minimumDeposit
+            )
+        );
+        // vm.expectRevert("Minimum deposite not met.");
         deBank.createAccount{value: insufficientAmount}(name1, pan1);
+        console.log("insufficient amount:", insufficientAmount);
+        console.log("minimum deposit", minimumDeposit);
         vm.stopPrank();
     }
 
     function testDuplicateAccountCreationFails() public {
         vm.startPrank(user1);
-        // vm.expectRevert(bytes(""));
         deBank.createAccount{value: minimumDeposit}(name1, pan1);
         vm.stopPrank();
 
         vm.assertEq(deBank.getTotalBankBalance(), minimumDeposit);
         vm.startPrank(user1);
-        vm.expectRevert("Account already exists.");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                bytes4(keccak256("AccountAlreadyExists(address)")),
+                user1
+            )
+        );
         deBank.createAccount{value: minimumDeposit}(name1, pan1);
         vm.stopPrank();
         vm.assertEq(deBank.getTotalBankBalance(), minimumDeposit);
-
     }
 
-    
+    function testDepositToAnotherContract() public {
+        vm.startPrank(user1);
+        //vm.expectEmit(true, true, abi.encodeWithSignature("AccountCreated(Account)", deBank.accounts[user1]));
+
+        deBank.createAccount{value: minimumDeposit}(name1, pan1);
+        vm.stopPrank();
+        
+        vm.startPrank(user2);
+        vm.expectEmit(true, true, abi.encodeWithSignature("Deposited(address, address, uint)", user2, user1, 1 ether));
+
+        deBank.depositToAnotherAccount{value: 1 ether}(user1);
+        vm.stopPrank();
+    }
 }
