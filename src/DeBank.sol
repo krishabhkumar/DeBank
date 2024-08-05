@@ -69,7 +69,7 @@ contract DeBank is Ownable, ReentrancyGuard {
         return address(this).balance;
     }
 
-    function getAccountBalance() public view returns (uint256) {
+    function getAccountBalance() public view onlyAccountOwners returns (uint256) {
         if (!accounts[msg.sender].exists) {
             revert AccountDoesNotExist();
         }
@@ -99,11 +99,16 @@ contract DeBank is Ownable, ReentrancyGuard {
     }
 
     function withdraw(uint _amount) public onlyAccountOwners {
+        require(_amount > 0  , "This operation cannot be performed.");
         if (!accounts[msg.sender].exists) {
             revert AccountDoesNotExist();
         }
-        uint amountLeftPostWithdrawl = accounts[msg.sender].balance - _amount;
-        if (amountLeftPostWithdrawl < MINIMUM_DEPOSIT) {
+        uint accountBalance = accounts[msg.sender].balance;
+        // if(_amount > accountBalance) {
+        //     revert InsufficientFunds();
+        // }
+        uint withdrawalLimit = accountBalance - MINIMUM_DEPOSIT;
+        if (_amount > withdrawalLimit) {
             revert InsufficientFunds();
         }
         // require(
@@ -120,7 +125,7 @@ contract DeBank is Ownable, ReentrancyGuard {
     }
 
     function transferOwnership(address _newOwner) public override onlyOwner {
-        require(_newOwner != address(0), "Non-zero address");
+        require(_newOwner != address(0), "Invalid address");
         _transferOwnership(_newOwner);
     }
 
