@@ -103,6 +103,7 @@ contract TestDeBank is Test {
     }
 
     function testDepositToAnotherAccount() public {
+        //1. user1 tries to send to user2 which is not linked
         vm.startPrank(user1);
         vm.expectRevert(
             abi.encodeWithSelector(bytes4(keccak256("AccountDoesNotExist()")))
@@ -110,45 +111,21 @@ contract TestDeBank is Test {
         deBank.depositToAnotherAccount{value: 1 ether}(user2);
         vm.stopPrank();
 
+        //2. user2 creats An account
         vm.prank(user2);
         deBank.createAccount{value: minimumDeposit}(name1, pan1);
 
+        //3. user1 sends ether to user2
         vm.startPrank(user1);
-        //vm.recordLogs();
-        vm.expectEmit(true, true, false, true);
-        //emit Deposited(user1, user2, 1 ether); // this line give us undeclared identifier
+        vm.expectRevert("Amount must be greater than zero");
+        deBank.depositToAnotherAccount{value: 0}(user2);
         deBank.depositToAnotherAccount{value: 1 ether}(user2);
-
-        // Vm.Log[] memory entries = vm.getRecordedLogs();
         vm.stopPrank();
 
-        // Find the Deposited event and assert its parameters
-        //bool depositedEventFound = false;
-        // for (uint256 i = 0; i < entries.length; i++) {
-        //     if (
-        //         entries[i].topics[0] ==
-        //         keccak256("Deposited(address,address,uint256)")
-        //     ) {
-        //         // Decode the event arguments
-        //         (address from, address to, uint256 amount) = abi.decode(
-        //             entries[i].data,
-        //             (address, address, uint256)
-        //         );
-
-        //         // Assert the event parameters match expectations
-        //         require(
-        //             from == user1 && to == user2 && amount == 1 ether,
-        //             "Incorrect Deposited event emitted"
-        //         );
-
-        //         depositedEventFound = true;
-        //         break;
-        //     }
-        // }
-        // require(
-        //     depositedEventFound,
-        //     "Deposited event not found in transaction logs"
-        // );
+        //4. user2 checks his/her account balance
+        vm.startPrank(user2);
+        assertEq(deBank.getAccountBalance(), 3 ether);
+        vm.stopPrank();
     }
 
     function testWithdrawalWithZeroAmount() external {
@@ -209,7 +186,12 @@ contract TestDeBank is Test {
 
     function testTransferOwnership() external {
         vm.startPrank(user1);
-        vm.expectRevert(abi.encodeWithSelector(bytes4(keccak256("OwnableUnauthorizedAccount(address)")),user1));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                bytes4(keccak256("OwnableUnauthorizedAccount(address)")),
+                user1
+            )
+        );
         //vm.expectRevert("Ownable: caller is not the owner");
         deBank.transferOwnership(user2);
         vm.stopPrank();
@@ -227,14 +209,39 @@ contract TestDeBank is Test {
 
     function testRenounceOwnership() external {
         vm.startPrank(user1);
-        vm.expectRevert(abi.encodeWithSelector(bytes4(keccak256("OwnableUnauthorizedAccount(address)")),user1));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                bytes4(keccak256("OwnableUnauthorizedAccount(address)")),
+                user1
+            )
+        );
         deBank.renounceOwnership();
         vm.stopPrank();
-        
+
         vm.startPrank(deBank.owner());
         deBank.renounceOwnership();
         assertEq(deBank.owner(), address(0));
         vm.stopPrank();
+    }
 
+    function testCloseAccount() external {
+        vm.startPrank(user1);
+        deBank.createAccount{value: 10 ether}(name1, pan1);
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        vm.expectRevert(
+            abi.encodeWithSelector(bytes4(keccak256("AccountDoesNotExist()")))
+        );
+        deBank.closeAccount();
+        vm.stopPrank();
+
+        vm.startPrank(user1);
+        deBank.closeAccount();
+        vm.expectRevert(
+            abi.encodeWithSelector(bytes4(keccak256("AccountDoesNotExist()")))
+        );
+        deBank.getAccountBalance();
+        vm.stopPrank();
     }
 }
